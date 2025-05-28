@@ -1,17 +1,177 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Upload Hình Ảnh</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Hình Ảnh</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
 </head>
-<body class="container mt-5">
-  <h1 class="mb-4">Upload Hình Ảnh</h1>
-  <form action="/upload" method="post" enctype="multipart/form-data">
-    <div class="mb-3">
-      <input class="form-control" type="file" name="image" required>
+<body class="bg-light">
+    <div class="upload-container">
+        <h1 class="upload-title">Upload Hình Ảnh</h1>
+        
+        <form id="uploadForm" action="/upload" method="post" enctype="multipart/form-data">
+            <div class="upload-area" id="dropZone">
+                <i class="fas fa-cloud-upload-alt upload-icon"></i>
+                <p class="upload-text">Kéo và thả hình ảnh vào đây</p>
+                <p class="upload-hint">hoặc</p>
+                <input type="file" name="image" id="fileInput" class="d-none" accept="image/*" required>
+                <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('fileInput').click()">
+                    Chọn File
+                </button>
+            </div>
+
+            <div class="preview-container" id="previewContainer">
+                <img id="previewImage" class="preview-image" src="" alt="Preview">
+            </div>
+
+            <div class="progress-bar" id="progressBar">
+                <div class="progress" id="progress"></div>
+            </div>
+
+            <button type="submit" class="upload-btn" id="uploadBtn" disabled>
+                Upload Hình Ảnh
+            </button>
+
+            <div class="success-message" id="successMessage">
+                Upload thành công!
+            </div>
+
+            <div class="error-message" id="errorMessage">
+                Có lỗi xảy ra khi upload!
+            </div>
+        </form>
     </div>
-    <button class="btn btn-primary" type="submit">Upload</button>
-  </form>
+
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const previewContainer = document.getElementById('previewContainer');
+        const previewImage = document.getElementById('previewImage');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const progressBar = document.getElementById('progressBar');
+        const progress = document.getElementById('progress');
+        const successMessage = document.getElementById('successMessage');
+        const errorMessage = document.getElementById('errorMessage');
+
+        // Xử lý kéo thả
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, highlight, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, unhighlight, false);
+        });
+
+        function highlight(e) {
+            dropZone.classList.add('dragover');
+        }
+
+        function unhighlight(e) {
+            dropZone.classList.remove('dragover');
+        }
+
+        dropZone.addEventListener('drop', handleDrop, false);
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            handleFiles(files);
+        }
+
+        fileInput.addEventListener('change', function() {
+            handleFiles(this.files);
+        });
+
+        function handleFiles(files) {
+            if (files.length > 0) {
+                const file = files[0];
+                if (file.type.startsWith('image/')) {
+                    previewFile(file);
+                    uploadBtn.disabled = false;
+                } else {
+                    showError('Vui lòng chọn file hình ảnh!');
+                }
+            }
+        }
+
+        function previewFile(file) {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onloadend = function() {
+                previewImage.src = reader.result;
+                previewContainer.style.display = 'block';
+            }
+        }
+
+        // Xử lý form submit
+        document.getElementById('uploadForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const xhr = new XMLHttpRequest();
+
+            xhr.upload.addEventListener('progress', function(e) {
+                if (e.lengthComputable) {
+                    const percentComplete = (e.loaded / e.total) * 100;
+                    progress.style.width = percentComplete + '%';
+                }
+            });
+
+            xhr.addEventListener('load', function() {
+                if (xhr.status === 200) {
+                    showSuccess();
+                } else {
+                    showError();
+                }
+            });
+
+            xhr.addEventListener('error', function() {
+                showError();
+            });
+
+            progressBar.style.display = 'block';
+            uploadBtn.disabled = true;
+            xhr.open('POST', '/upload', true);
+            xhr.send(formData);
+        });
+
+        function showSuccess() {
+            successMessage.style.display = 'block';
+            errorMessage.style.display = 'none';
+            setTimeout(() => {
+                successMessage.style.display = 'none';
+                resetForm();
+            }, 3000);
+        }
+
+        function showError(message = 'Có lỗi xảy ra khi upload!') {
+            errorMessage.textContent = message;
+            errorMessage.style.display = 'block';
+            successMessage.style.display = 'none';
+            setTimeout(() => {
+                errorMessage.style.display = 'none';
+            }, 3000);
+        }
+
+        function resetForm() {
+            document.getElementById('uploadForm').reset();
+            previewContainer.style.display = 'none';
+            progressBar.style.display = 'none';
+            progress.style.width = '0';
+            uploadBtn.disabled = true;
+        }
+    </script>
 </body>
 </html>
